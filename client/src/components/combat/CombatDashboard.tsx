@@ -15,15 +15,13 @@ interface CombatDashboardProps {
   active: boolean;
   combatData: CombatUpdatePayload | null;
   enemyName: string;
-  onRetreat: () => void;
 }
 
-export function CombatDashboard({ active, combatData, enemyName, onRetreat }: CombatDashboardProps) {
+export function CombatDashboard({ active, combatData, enemyName }: CombatDashboardProps) {
   const [localPlayerHp, setLocalPlayerHp] = useState(combatData?.playerHp || 100);
   const [localEnemyHp, setLocalEnemyHp] = useState(combatData?.enemyHp || 100);
   const [playerDice, setPlayerDice] = useState(combatData?.playerRoll || 1);
   const [enemyDice, setEnemyDice] = useState(combatData?.enemyRoll || 1);
-  const [isRolling, setIsRolling] = useState(false);
   const [damageFloat, setDamageFloat] = useState<{ value: number; source: 'player' | 'enemy' | null }>({ value: 0, source: null });
   const [shake, setShake] = useState(false);
   const [flash, setFlash] = useState(false);
@@ -84,8 +82,6 @@ export function CombatDashboard({ active, combatData, enemyName, onRetreat }: Co
       combatData.playerRoll !== previousDataRef.current.playerRoll ||
       combatData.enemyRoll !== previousDataRef.current.enemyRoll
     ) {
-      setIsRolling(true);
-      
       // Rapid dice rolling animation
       let rollCount = 0;
       const rollInterval = setInterval(() => {
@@ -95,7 +91,6 @@ export function CombatDashboard({ active, combatData, enemyName, onRetreat }: Co
         
         if (rollCount >= 10) {
           clearInterval(rollInterval);
-          setIsRolling(false);
           setPlayerDice(combatData.playerRoll);
           setEnemyDice(combatData.enemyRoll);
         }

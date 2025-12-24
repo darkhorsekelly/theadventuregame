@@ -13,6 +13,18 @@ function App() {
     return localStorage.getItem('authToken');
   });
   const { socket, isConnected } = useGameSocket(authToken);
+
+  // Allow body scrolling when auth screen is shown
+  useEffect(() => {
+    if (!authToken) {
+      document.body.style.overflowY = 'auto';
+    } else {
+      document.body.style.overflowY = 'hidden';
+    }
+    return () => {
+      document.body.style.overflowY = '';
+    };
+  }, [authToken]);
   const [history, setHistory] = useState<LogEntry[]>([]);
   const [player, setPlayer] = useState<User | null>(null);
   const [room, setRoom] = useState<Room | null>(null);

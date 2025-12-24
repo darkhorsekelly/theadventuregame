@@ -342,7 +342,6 @@ export function Terminal({
             active={inCombat}
             combatData={combatData}
             enemyName={enemyName}
-            onRetreat={onRetreat || (() => {})}
           />
         )}
 
