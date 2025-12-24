@@ -436,10 +436,11 @@ function handleObjName(socket: Socket, user: User, input: string): { handled: bo
   tempItemData.name = input.trim();
   store.setTempItemData(user.id, tempItemData);
 
-  repo.updateUserState(user.id, 'CREATING_OBJ_VERB');
+  // CRITICAL: Transition to Description, NOT Verb
+  repo.updateUserState(user.id, 'CREATING_OBJ_DESC');
 
   socket.emit('game:log', {
-    text: 'What verb can be used to interact with this? (e.g., "pull", "lift", "open")',
+    text: 'Describe this object.',
     type: 'prompt' as const,
     label: 'QUESTION',
   });
@@ -701,54 +702,60 @@ function handleObjType(socket: Socket, user: User, input: string): { handled: bo
 
   // Branch based on type
   if (tempItemData.interactionType === 'FLAVOR') {
-    // Need verb for flavor items
+    // Type 1 (Flavor): Need verb
     repo.updateUserState(user.id, 'CREATING_OBJ_VERB');
     socket.emit('game:log', {
-      text: 'What verb can be used to interact with this? (e.g., "pull", "lift", "examine")',
+      text: 'What is the interaction verb? (e.g., "read", "touch", "examine")',
       type: 'prompt' as const,
       label: 'QUESTION',
     });
   } else if (tempItemData.interactionType === 'TREASURE') {
-    // Verb already set to 'open', ask for value
+    // Type 2 (Treasure): Verb already set to 'open', ask for gold amount
     repo.updateUserState(user.id, 'CREATING_OBJ_VALUE');
     socket.emit('game:log', {
-      text: 'How much gold?',
+      text: 'How much Gold?',
       type: 'prompt' as const,
       label: 'QUESTION',
     });
   } else if (tempItemData.interactionType === 'BUFF_TRAP') {
-    // Need verb for buff/trap items
-    repo.updateUserState(user.id, 'CREATING_OBJ_VERB');
+    // Type 3 (Buff/Trap): Need verb, then value
+    tempItemData.verb = 'touch';
+    store.setTempItemData(user.id, tempItemData);
+    repo.updateUserState(user.id, 'CREATING_OBJ_VALUE');
     socket.emit('game:log', {
-      text: 'What verb can be used to interact with this? (e.g., "pull", "lift", "touch")',
+      text: 'HP Change? (Positive/Negative)',
       type: 'prompt' as const,
       label: 'QUESTION',
     });
   } else if (tempItemData.interactionType === 'PICKUP') {
-    // Verb already set or can be 'take', ask for success message
+    // Type 4 (Pickup): Verb already set to 'take', ask for success message
     if (!tempItemData.verb) {
       tempItemData.verb = 'take';
       store.setTempItemData(user.id, tempItemData);
     }
     repo.updateUserState(user.id, 'CREATING_OBJ_SUCCESS_MSG');
     socket.emit('game:log', {
-      text: `Describe what happens when someone ${tempItemData.verb} ${tempItemData.name}.`,
+      text: 'What is the success message?',
       type: 'prompt' as const,
       label: 'QUESTION',
     });
   } else if (tempItemData.interactionType === 'ENEMY') {
-    // Verb already set to 'fight', ask for enemy stats
+    // Type 5 (Enemy): Verb already set to 'fight', ask for enemy stats
     repo.updateUserState(user.id, 'CREATING_OBJ_ENEMY_STATS');
     socket.emit('game:log', {
-      text: 'Enter Enemy HP, Attack Strength, and XP Value (separated by space, e.g., "20 4 10"):',
+      text: 'Enter HP Attack XP (e.g., "20 4 50"):',
       type: 'prompt' as const,
       label: 'QUESTION',
     });
   } else if (tempItemData.interactionType === 'GATE') {
-    // Need verb for gate items
-    repo.updateUserState(user.id, 'CREATING_OBJ_VERB');
+    // Type 6 (Gate): Verb already set to 'open', ask for requirement
+    if (!tempItemData.verb) {
+      tempItemData.verb = 'open';
+      store.setTempItemData(user.id, tempItemData);
+    }
+    repo.updateUserState(user.id, 'CREATING_OBJ_REQUIREMENT');
     socket.emit('game:log', {
-      text: 'What verb can be used to interact with this? (e.g., "open", "unlock", "activate")',
+      text: 'Name of required Key?',
       type: 'prompt' as const,
       label: 'QUESTION',
     });
@@ -785,22 +792,26 @@ function handleObjValue(socket: Socket, user: User, input: string): { handled: b
     return { handled: true };
   }
 
-  const value = parseInt(input.trim(), 10);
+  // Handle both positive and negative values for BUFF_TRAP
+  const trimmedInput = input.trim();
+  const isNegative = trimmedInput.startsWith('-');
+  const value = parseInt(trimmedInput, 10);
+  
   if (isNaN(value)) {
     socket.emit('game:log', {
-      text: 'Invalid number. Please enter a valid integer.',
+      text: 'Invalid number. Please enter a valid integer (positive or negative).',
       type: 'error' as const,
     });
     return { handled: true };
   }
 
-  tempItemData.effectValue = value;
+  tempItemData.effectValue = value; // Store as-is (negative for damage, positive for heal)
   store.setTempItemData(user.id, tempItemData);
 
   // Ask for success message after value
   repo.updateUserState(user.id, 'CREATING_OBJ_SUCCESS_MSG');
   socket.emit('game:log', {
-    text: `Describe what happens when someone ${tempItemData.verb || 'interacts with'} ${tempItemData.name}.`,
+    text: 'What is the success message?',
     type: 'prompt' as const,
     label: 'QUESTION',
   });

@@ -22,7 +22,7 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
     try {
       // First, test if server is reachable
       try {
-        const testResponse = await fetch('http://localhost:3000/api/test', { 
+        const testResponse = await fetch('/api/test', { 
           method: 'GET',
           signal: AbortSignal.timeout(2000) 
         });
@@ -30,20 +30,19 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
         console.log('Server test response:', testData);
       } catch (testErr) {
         console.error('Server test failed:', testErr);
-        setError('Cannot connect to server. Make sure the server is running on http://localhost:3000');
+        setError('Cannot connect to server. Please check your connection.');
         setLoading(false);
         return;
       }
 
       const endpoint = activeTab === 'login' ? '/api/login' : '/api/signup';
-      const url = `http://localhost:3000${endpoint}`;
-      console.log('Sending auth request to:', url, { handle, serverCode, hasAccessCode: !!accessCode });
+      console.log('Sending auth request to:', endpoint, { handle, serverCode, hasAccessCode: !!accessCode });
       
       // Add timeout to prevent hanging
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       
-      const response = await fetch(url, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -82,7 +81,7 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
         if (err.name === 'AbortError') {
           setError('Request timed out. Is the server running?');
         } else if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
-          setError('Cannot connect to server. Make sure the server is running on http://localhost:3000');
+          setError('Cannot connect to server. Please check your connection.');
         } else {
           setError(err.message || 'Connection error. Please try again.');
         }
