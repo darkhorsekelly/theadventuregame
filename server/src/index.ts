@@ -15,10 +15,11 @@ import * as general from './handlers/general.js';
 import * as interaction from './handlers/interaction.js';
 import * as combat from './handlers/combat.js';
 import * as authService from './services/auth.js';
+import fastifyStatic from '@fastify/static';
 
 // Load environment variables from .env file in server directory
-const currentDir = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(currentDir, '..', '.env') });
+const serverDir = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(serverDir, '..', '.env') });
 console.log('Database Path:', process.env.DB_PATH);
 console.log('OpenAI API Key:', process.env.OPENAI_API_KEY ? 'Set' : 'Not set');
 console.log('Server Access Code:', process.env.SERVER_ACCESS_CODE ? 'Set' : 'Not set (server is open)');
@@ -129,6 +130,69 @@ async function main() {
     } catch (error) {
       fastify.log.error(error);
       reply.code(500).send({ success: false, error: 'Internal server error' });
+    }
+  });
+
+  // --- STATIC FILE DEBUG ---
+  // Determine client build path
+  // When compiled: server/dist/index.js -> ../../client/dist
+  // When running with tsx: server/src/index.ts -> ../../client/dist
+  const clientBuildPath = path.resolve(currentDir, '../../client/dist');
+  
+  fastify.log.info('--- STATIC FILE DEBUG ---');
+  fastify.log.info(`Current __dirname: ${currentDir}`);
+  fastify.log.info(`Looking for client build at: ${clientBuildPath}`);
+  fastify.log.info(`Does directory exist? ${fs.existsSync(clientBuildPath)}`);
+  
+  if (fs.existsSync(clientBuildPath)) {
+    const contents = fs.readdirSync(clientBuildPath);
+    fastify.log.info(`Directory contents: ${contents.join(', ')}`);
+    const indexPath = path.join(clientBuildPath, 'index.html');
+    fastify.log.info(`index.html exists? ${fs.existsSync(indexPath)}`);
+  } else {
+    fastify.log.error('CRITICAL: Client build directory missing!');
+    fastify.log.error(`Expected path: ${clientBuildPath}`);
+    // Try alternative paths for debugging
+    const altPath1 = path.resolve(currentDir, '../client/dist');
+    const altPath2 = path.resolve(process.cwd(), 'client/dist');
+    fastify.log.info(`Alternative path 1 (../client/dist): ${altPath1} - exists: ${fs.existsSync(altPath1)}`);
+    fastify.log.info(`Alternative path 2 (process.cwd/client/dist): ${altPath2} - exists: ${fs.existsSync(altPath2)}`);
+  }
+  fastify.log.info('-------------------------');
+
+  // Register static file serving
+  if (fs.existsSync(clientBuildPath)) {
+    await fastify.register(fastifyStatic, {
+      root: clientBuildPath,
+      prefix: '/', // optional: default '/'
+    });
+  } else {
+    fastify.log.warn('Static file serving disabled: client build directory not found');
+  }
+
+  // Catch-all route for SPA (MUST BE LAST, after all API routes)
+  fastify.get('*', async (request, reply) => {
+    // Skip API routes
+    if (request.url.startsWith('/api/')) {
+      return reply.code(404).send({ error: 'API endpoint not found' });
+    }
+    
+    // Skip socket.io routes
+    if (request.url.startsWith('/socket.io/')) {
+      return reply.code(404).send({ error: 'Socket.io endpoint not found' });
+    }
+    
+    // Serve index.html for all other routes (SPA routing)
+    const indexPath = path.join(clientBuildPath, 'index.html');
+    
+    if (fs.existsSync(indexPath)) {
+      // Read and send index.html directly
+      const htmlContent = fs.readFileSync(indexPath, 'utf8');
+      reply.type('text/html');
+      return reply.send(htmlContent);
+    } else {
+      fastify.log.error(`index.html not found at: ${indexPath}`);
+      return reply.code(404).send('Client build not found (index.html missing). Check server logs.');
     }
   });
 
