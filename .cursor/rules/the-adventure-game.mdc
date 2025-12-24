@@ -1,0 +1,16 @@
+---
+alwaysApply: true
+---
+
+# Project Rules for Cursor
+
+1. **Simplicity First:** Do not use Redux, Recoil, or complex state managers. Use React `useContext` + `useReducer` for global game state.
+2. **Styling:** Use standard CSS Modules or plain CSS. Do not install Tailwind or styled-components unless explicitly asked.
+3. **No-Build Backend:** The backend code must run directly via `ts-node` or similar during dev.
+4. **Strict Types:** No `any`. All socket payloads must be typed.
+5. **Component Logic:**
+   - Keep `Terminal.tsx` focused only on rendering text logs and capturing input.
+   - Keep `HexMap.tsx` focused on rendering the Canvas. It receives a list of "Known Rooms" as props.
+6. **Database:** Use `better-sqlite3`. Always use prepared statements (`db.prepare(...)`) to prevent injection.
+7. **Error Handling:** If a user command fails (e.g., "go north" into a wall), send a `game:log` event with `type: 'error'`. Do not crash the server.
+
