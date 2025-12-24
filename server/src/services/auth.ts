@@ -35,6 +35,10 @@ export async function signup(handle: string, password: string, serverCode: strin
   if (!validateServerCode(serverCode)) {
     return { success: false, error: 'Invalid island code' };
   }
+  
+  // Normalize server code early so it can be used throughout
+  const normalizedServerCode = serverCode.trim().toUpperCase();
+  
   // Validate input
   if (!handle || handle.trim().length === 0) {
     return { success: false, error: 'Username is required' };
@@ -46,10 +50,10 @@ export async function signup(handle: string, password: string, serverCode: strin
     return { success: false, error: 'Password must be at least 6 characters' };
   }
 
-  // Check if user already exists
-  const existingUser = repo.getUserByHandle(handle);
+  // Check if user already exists (check within the same server_code for realm isolation)
+  const existingUser = repo.getUserByHandle(handle, normalizedServerCode);
   if (existingUser) {
-    return { success: false, error: 'Username already taken' };
+    return { success: false, error: 'Username already taken. Please login.' };
   }
 
   // Hash password
@@ -57,7 +61,6 @@ export async function signup(handle: string, password: string, serverCode: strin
 
   // Create user
   const userId = uuidv4();
-  const normalizedServerCode = serverCode.trim().toUpperCase();
   const newUser: Omit<User, 'id'> = {
     handle: handle.trim(),
     server_code: normalizedServerCode,

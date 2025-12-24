@@ -137,9 +137,16 @@ export function createUser(id: string, userData: Omit<User, 'id'>, passwordHash:
   return user;
 }
 
-export function getUserByHandle(handle: string): User | undefined {
-  const stmt = getDb().prepare('SELECT id, handle, server_code, strength, hp, max_hp, gold, current_q, current_r, state FROM users WHERE handle = ?');
-  return stmt.get(handle) as User | undefined;
+export function getUserByHandle(handle: string, serverCode?: string): User | undefined {
+  if (serverCode) {
+    // Filter by server_code for realm isolation
+    const stmt = getDb().prepare('SELECT id, handle, server_code, strength, hp, max_hp, gold, current_q, current_r, state FROM users WHERE handle = ? AND server_code = ?');
+    return stmt.get(handle, serverCode) as User | undefined;
+  } else {
+    // Legacy behavior: check globally (for login compatibility)
+    const stmt = getDb().prepare('SELECT id, handle, server_code, strength, hp, max_hp, gold, current_q, current_r, state FROM users WHERE handle = ?');
+    return stmt.get(handle) as User | undefined;
+  }
 }
 
 export function getUserPasswordHash(userId: string): string | undefined {
@@ -210,10 +217,24 @@ export function ensureSystemUser(serverCode: string = 'default'): void {
   }
 }
 
-export function ensureGenesisRoom(serverCode: string): void {
+export function ensureGenesisRoom(serverCode: string, creatorId: string): void {
   if (!serverCode) {
     throw new Error('serverCode is required for ensureGenesisRoom');
   }
+  if (!creatorId) {
+    throw new Error('Genesis Room requires a valid Creator ID');
+  }
+  
+  // Validate that the creator exists
+  const creator = getUser(creatorId);
+  if (!creator) {
+    throw new Error(`Invalid creator ID: ${creatorId} does not exist`);
+  }
+  // Also validate server_code matches
+  if (creator.server_code !== serverCode) {
+    throw new Error(`Creator ID ${creatorId} belongs to a different server_code (${creator.server_code} vs ${serverCode})`);
+  }
+  
   const existingRoom = getRoom(0, 0, serverCode);
   if (!existingRoom) {
     const stmt = getDb().prepare<[string, number, number, string, string, string, number, string]>(
@@ -227,7 +248,7 @@ export function ensureGenesisRoom(serverCode: string): void {
       'The Crash Site',
       'You stand amidst the wreckage of your arrival. The island stretches out in all directions.',
       0,
-      'system',
+      creatorId, // Use the provided creator ID instead of hardcoded 'system'
     );
   }
 }

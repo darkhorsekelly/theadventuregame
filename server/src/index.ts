@@ -96,7 +96,9 @@ async function main() {
       if (result.success && result.token && result.user) {
         reply.send({ success: true, token: result.token, user: result.user });
       } else {
-        reply.code(400).send({ success: false, error: result.error || 'Signup failed' });
+        // Return 409 Conflict for duplicate username, 400 for other errors
+        const statusCode = result.error?.includes('already taken') ? 409 : 400;
+        reply.code(statusCode).send({ success: false, error: result.error || 'Signup failed' });
       }
     } catch (error) {
       fastify.log.error(`Signup error: ${error instanceof Error ? error.message : String(error)}`);
@@ -255,9 +257,11 @@ async function main() {
     const serverCode = currentPlayer.server_code;
     socket.join(serverCode);
 
-    // Ensure genesis room exists for this realm
-    repo.ensureGenesisRoom(serverCode);
+    // Ensure system user exists first (needed for genesis room if user doesn't exist)
     repo.ensureSystemUser(serverCode);
+    
+    // Ensure genesis room exists for this realm (created by the current user)
+    repo.ensureGenesisRoom(serverCode, currentPlayer.id);
 
     const currentRoom = repo.getRoom(currentPlayer.current_q, currentPlayer.current_r, serverCode);
     
