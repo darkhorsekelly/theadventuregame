@@ -164,20 +164,21 @@ async function main() {
   if (fs.existsSync(clientBuildPath)) {
     await fastify.register(fastifyStatic, {
       root: clientBuildPath,
-      prefix: '/', // optional: default '/'
+      prefix: '/', // Serve at root
+      wildcard: false, // Handle 404s manually for SPA
     });
   } else {
     fastify.log.warn('Static file serving disabled: client build directory not found');
   }
 
-  // Catch-all route for SPA (MUST BE LAST, after all API routes)
-  fastify.get('*', async (request, reply) => {
-    // Skip API routes
+  // SPA Catch-All Handler (For React Router) - Must be set after static plugin
+  fastify.setNotFoundHandler(async (request, reply) => {
+    // Skip API routes - return proper 404
     if (request.url.startsWith('/api/')) {
       return reply.code(404).send({ error: 'API endpoint not found' });
     }
     
-    // Skip socket.io routes
+    // Skip socket.io routes - return proper 404
     if (request.url.startsWith('/socket.io/')) {
       return reply.code(404).send({ error: 'Socket.io endpoint not found' });
     }
