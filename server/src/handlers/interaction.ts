@@ -117,8 +117,15 @@ export function handleInteraction(
     case 'ITEM':
       // Pick up item: move from room to inventory
       if (item.room_id) {
-        repo.setItemOwner(item.id, user.id, null);
-        successMessage = `You picked up the ${item.name}.`;
+        if (item.is_infinite) {
+          // Clone infinite items instead of moving them
+          repo.cloneItemForUser(item, user.id);
+          successMessage = `You picked up the ${item.name}.`;
+        } else {
+          // Move unique items (standard behavior)
+          repo.setItemOwner(item.id, user.id, null);
+          successMessage = `You picked up the ${item.name}.`;
+        }
       } else {
         // Item is already in inventory, can't pick it up again
         socket.emit('game:log', {

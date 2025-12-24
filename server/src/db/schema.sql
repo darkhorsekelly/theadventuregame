@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS items (
   enemy_max_hp INTEGER NOT NULL DEFAULT 0,
   enemy_attack INTEGER NOT NULL DEFAULT 0,
   xp_value INTEGER NOT NULL DEFAULT 10,
+  is_infinite INTEGER NOT NULL DEFAULT 0,
   FOREIGN KEY (room_id) REFERENCES rooms(id),
   FOREIGN KEY (owner_id) REFERENCES users(id),
   FOREIGN KEY (required_item_id) REFERENCES items(id)

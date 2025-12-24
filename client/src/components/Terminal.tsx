@@ -384,7 +384,7 @@ export function Terminal({
                 textAlign: 'center',
               }}
             >
-              MOVE: n/ne/se/s/sw/nw | LOOK: help
+              MOVE: n/ne/se/s/sw/nw | help | look [object] | [verb] [object]
             </div>
           </>
         )}

@@ -152,7 +152,7 @@ function App() {
     >
       <div
         style={{
-          flex: 1,
+          flex: 0.5,
           minHeight: 0,
           position: 'relative',
         }}
@@ -162,7 +162,7 @@ function App() {
       </div>
       <div
         style={{
-          flex: 2,
+          flex: 2.5,
           minHeight: 0,
           borderTop: '2px solid var(--accent-gold)',
           position: 'relative',

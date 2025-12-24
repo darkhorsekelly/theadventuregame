@@ -90,6 +90,10 @@ function runMigrations(database: Database.Database): void {
       const defaultCode = process.env.DEFAULT_SERVER_CODE || 'default';
       database.exec(`ALTER TABLE items ADD COLUMN server_code TEXT NOT NULL DEFAULT '${defaultCode}'`);
     }
+    // Add is_infinite if it doesn't exist
+    if (!columnNames.includes('is_infinite')) {
+      database.exec('ALTER TABLE items ADD COLUMN is_infinite INTEGER NOT NULL DEFAULT 0');
+    }
   } catch (error) {
     // Table doesn't exist yet, schema.sql will create it with all columns
     // This is fine, just continue
@@ -345,8 +349,8 @@ export function createItem(item: Omit<Item, 'id'>): Item {
     throw new Error('server_code is required for createItem');
   }
   const id = uuidv4();
-  const stmt = getDb().prepare<[string, string | null, string | null, string, string, string, string, string, string, number, number, string | null, number, number, number, number]>(
-    'INSERT INTO items (id, room_id, owner_id, server_code, name, description, success_message, interact_verb, effect_type, effect_value, is_hidden, required_item_id, enemy_hp, enemy_max_hp, enemy_attack, xp_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+  const stmt = getDb().prepare<[string, string | null, string | null, string, string, string, string, string, string, number, number, string | null, number, number, number, number, number]>(
+    'INSERT INTO items (id, room_id, owner_id, server_code, name, description, success_message, interact_verb, effect_type, effect_value, is_hidden, required_item_id, enemy_hp, enemy_max_hp, enemy_attack, xp_value, is_infinite) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
   );
   stmt.run(
     id,
@@ -365,11 +369,43 @@ export function createItem(item: Omit<Item, 'id'>): Item {
     item.enemy_max_hp ?? 0,
     item.enemy_attack ?? 0,
     item.xp_value ?? 10,
+    item.is_infinite ?? 0,
   );
   const createdItem = getDb()
     .prepare('SELECT * FROM items WHERE id = ?')
     .get(id) as Item;
   return createdItem;
+}
+
+/**
+ * Clone an infinite supply item for a user
+ * Creates a new unique item in the user's inventory
+ */
+export function cloneItemForUser(originalItem: Item, userId: string): Item {
+  if (!originalItem.is_infinite) {
+    throw new Error('cloneItemForUser can only be called on infinite items');
+  }
+  
+  const clonedItem: Omit<Item, 'id'> = {
+    room_id: null, // Cloned items go to inventory
+    owner_id: userId,
+    server_code: originalItem.server_code,
+    name: originalItem.name,
+    description: originalItem.description,
+    success_message: originalItem.success_message,
+    interact_verb: originalItem.interact_verb,
+    effect_type: originalItem.effect_type,
+    effect_value: originalItem.effect_value,
+    is_hidden: originalItem.is_hidden,
+    required_item_id: originalItem.required_item_id,
+    enemy_hp: originalItem.enemy_hp,
+    enemy_max_hp: originalItem.enemy_max_hp,
+    enemy_attack: originalItem.enemy_attack,
+    xp_value: originalItem.xp_value,
+    is_infinite: 0, // The clone is unique, not infinite
+  };
+  
+  return createItem(clonedItem);
 }
 
 // Animation operations

@@ -108,6 +108,7 @@ export function handleMove(
 
     const visibleRooms = repo.getVisibleRooms(updatedUser.current_q, updatedUser.current_r, serverCode);
     const roomItems: import('../types/index.js').Item[] = [];
+    const inventory = repo.getUserInventory(user.id, serverCode);
 
     return {
       handled: true,
@@ -116,6 +117,7 @@ export function handleMove(
         room: voidRoom,
         visibleRooms,
         roomItems,
+        inventory,
       },
     };
   }

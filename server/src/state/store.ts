@@ -17,6 +17,7 @@ export interface TempItemData {
   enemyHp?: number;
   enemyMaxHp?: number;
   enemyAttack?: number;
+  isInfinite?: boolean;
   xpValue?: number;
   requiredItemId?: string | null;
   requiredItemName?: string;

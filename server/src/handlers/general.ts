@@ -213,11 +213,13 @@ export async function handleRegenerate(
     }
 
     // Send state update with refreshed room (includes new symbol)
+    const inventory = repo.getUserInventory(user.id, user.server_code);
     socket.emit('state:update', {
       player: user,
       room: refreshedRoom,
       visibleRooms,
       roomItems: finalRoomItems,
+      inventory,
     });
 
     // Send the new tapestry animation

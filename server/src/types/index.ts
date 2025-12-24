@@ -24,6 +24,8 @@ export interface User {
     | 'CREATING_OBJ_CONTENTS'
     | 'CREATING_OBJ_ENEMY_STATS'
     | 'CREATING_OBJ_REQUIREMENT'
+    | 'CREATING_OBJ_SUPPLY_TYPE'
+    | 'CREATING_OBJ_VERB_CONFIRM'
     | 'GENERATING_ANIMATIONS'
     | 'COMBAT';
 }
@@ -57,6 +59,7 @@ export interface Item {
   enemy_max_hp: number;
   enemy_attack: number;
   xp_value: number;
+  is_infinite: number;
 }
 
 export interface Animation {

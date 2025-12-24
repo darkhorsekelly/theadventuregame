@@ -76,6 +76,14 @@ export function handleInput(
     return handleObjRequirement(socket, user, input);
   }
 
+  if (user.state === 'CREATING_OBJ_SUPPLY_TYPE') {
+    return handleObjSupplyType(socket, user, input);
+  }
+
+  if (user.state === 'CREATING_OBJ_VERB_CONFIRM') {
+    return handleObjVerbConfirm(socket, user, input);
+  }
+
   if (user.state === 'GENERATING_ANIMATIONS') {
     // User should not be able to input during generation
     return { handled: true };
@@ -112,6 +120,7 @@ function handleRoomTitle(socket: Socket, user: User, input: string): { handled: 
 
   const visibleRooms = repo.getVisibleRooms(updatedUser.current_q, updatedUser.current_r, user.server_code);
   const roomItems: Item[] = [];
+  const inventory = repo.getUserInventory(user.id, user.server_code);
 
   return {
     handled: true,
@@ -120,6 +129,7 @@ function handleRoomTitle(socket: Socket, user: User, input: string): { handled: 
       room: voidRoom,
       visibleRooms,
       roomItems,
+      inventory,
     },
   };
 }
@@ -141,7 +151,7 @@ function handleRoomDesc(socket: Socket, user: User, input: string): { handled: b
   repo.updateUserState(user.id, 'CREATING_ROOM_MOOD');
 
   socket.emit('game:log', {
-    text: 'Select a mood: 1. Mysterious, 2. Dangerous, 3. Peaceful, 4. Ancient, 5. Whimsical',
+    text: 'Choose a Mood:\n1. Neutral\n2. Mysterious\n3. Dangerous\n4. Peaceful\n5. Ancient\n6. Whimsical',
     type: 'prompt' as const,
     label: 'QUESTION',
   });
@@ -161,6 +171,7 @@ function handleRoomDesc(socket: Socket, user: User, input: string): { handled: b
 
   const visibleRooms = repo.getVisibleRooms(updatedUser.current_q, updatedUser.current_r, user.server_code);
   const roomItems: Item[] = [];
+  const inventory = repo.getUserInventory(user.id, user.server_code);
 
   return {
     handled: true,
@@ -169,6 +180,7 @@ function handleRoomDesc(socket: Socket, user: User, input: string): { handled: b
       room: voidRoom,
       visibleRooms,
       roomItems,
+      inventory,
     },
   };
 }
@@ -186,16 +198,17 @@ function handleRoomMood(socket: Socket, user: User, input: string): { handled: b
 
   const moodNumber = parseInt(input.trim(), 10);
   const moodMap: Record<number, string> = {
-    1: 'Mysterious',
-    2: 'Dangerous',
-    3: 'Peaceful',
-    4: 'Ancient',
-    5: 'Whimsical',
+    1: 'Neutral',
+    2: 'Mysterious',
+    3: 'Dangerous',
+    4: 'Peaceful',
+    5: 'Ancient',
+    6: 'Whimsical',
   };
 
-  if (isNaN(moodNumber) || moodNumber < 1 || moodNumber > 5) {
+  if (isNaN(moodNumber) || moodNumber < 1 || moodNumber > 6) {
     socket.emit('game:log', {
-      text: 'Invalid selection. Please enter a number between 1 and 5.',
+      text: 'Invalid selection. Please enter a number between 1 and 6.',
       type: 'error' as const,
     });
     return { handled: true };
@@ -227,6 +240,7 @@ function handleRoomMood(socket: Socket, user: User, input: string): { handled: b
 
   const visibleRooms = repo.getVisibleRooms(updatedUser.current_q, updatedUser.current_r, user.server_code);
   const roomItems: Item[] = [];
+  const inventory = repo.getUserInventory(user.id, user.server_code);
 
   return {
     handled: true,
@@ -235,6 +249,7 @@ function handleRoomMood(socket: Socket, user: User, input: string): { handled: b
       room: voidRoom,
       visibleRooms,
       roomItems,
+      inventory,
     },
   };
 }
@@ -292,6 +307,7 @@ function handleRoomShroud(socket: Socket, user: User, input: string): { handled:
 
   const visibleRooms = repo.getVisibleRooms(updatedUser.current_q, updatedUser.current_r, user.server_code);
   const roomItems = repo.getRoomItems(newRoom.id, user.server_code);
+  const inventory = repo.getUserInventory(user.id, user.server_code);
 
   return {
     handled: true,
@@ -300,6 +316,7 @@ function handleRoomShroud(socket: Socket, user: User, input: string): { handled:
       room: newRoom,
       visibleRooms,
       roomItems,
+      inventory,
     },
   };
 }
@@ -339,11 +356,13 @@ function handleObjConfirm(socket: Socket, user: User, input: string): { handled:
           type: 'info' as const,
         });
 
+        const inventory = repo.getUserInventory(user.id, user.server_code);
         socket.emit('state:update', {
           player: updatedUser,
           room: refreshedRoom,
           visibleRooms,
           roomItems: finalRoomItems,
+          inventory,
         });
 
         // Send room tapestry animation
@@ -368,17 +387,20 @@ function handleObjConfirm(socket: Socket, user: User, input: string): { handled:
           type: 'info' as const,
         });
 
+        const inventory = repo.getUserInventory(user.id, user.server_code);
         socket.emit('state:update', {
           player: updatedUser,
           room: currentRoom,
           visibleRooms,
           roomItems: finalRoomItems,
+          inventory,
         });
       });
 
     // Return immediately with generating state
     const updatedUser = repo.getUser(user.id)!;
     const visibleRooms = repo.getVisibleRooms(updatedUser.current_q, updatedUser.current_r, user.server_code);
+    const inventory = repo.getUserInventory(user.id, user.server_code);
 
     return {
       handled: true,
@@ -387,6 +409,7 @@ function handleObjConfirm(socket: Socket, user: User, input: string): { handled:
         room: currentRoom,
         visibleRooms,
         roomItems,
+        inventory,
       },
     };
   } else if (response === 'y' || response === 'yes') {
@@ -403,6 +426,7 @@ function handleObjConfirm(socket: Socket, user: User, input: string): { handled:
     const currentRoom = repo.getRoom(user.current_q, user.current_r, user.server_code)!;
     const visibleRooms = repo.getVisibleRooms(updatedUser.current_q, updatedUser.current_r, user.server_code);
     const roomItems = repo.getRoomItems(currentRoom.id, user.server_code);
+    const inventory = repo.getUserInventory(user.id, user.server_code);
 
     return {
       handled: true,
@@ -411,6 +435,7 @@ function handleObjConfirm(socket: Socket, user: User, input: string): { handled:
         room: currentRoom,
         visibleRooms,
         roomItems,
+        inventory,
       },
     };
   } else {
@@ -449,6 +474,7 @@ function handleObjName(socket: Socket, user: User, input: string): { handled: bo
   const currentRoom = repo.getRoom(user.current_q, user.current_r, user.server_code)!;
   const visibleRooms = repo.getVisibleRooms(updatedUser.current_q, updatedUser.current_r, user.server_code);
   const roomItems = repo.getRoomItems(currentRoom.id, user.server_code);
+  const inventory = repo.getUserInventory(user.id, user.server_code);
 
   return {
     handled: true,
@@ -457,6 +483,7 @@ function handleObjName(socket: Socket, user: User, input: string): { handled: bo
       room: currentRoom,
       visibleRooms,
       roomItems,
+      inventory,
     },
   };
 }
@@ -480,7 +507,7 @@ function handleObjDesc(socket: Socket, user: User, input: string): { handled: bo
   repo.updateUserState(user.id, 'CREATING_OBJ_TYPE');
 
   socket.emit('game:log', {
-    text: 'What type of interaction is this?\n1. Flavor (Just text)\n2. Treasure/Container (Gives Gold)\n3. Restorative/Hazard (Heals or Hurts)\n4. Pickup (Put this item in inventory)\n5. Enemy (Something to fight)\n6. Gate (Requires an item to work)',
+    text: 'What type of object?\n1. Flavor\n2. Treasure\n3. Buff/Trap\n4. Pickup\n5. Enemy\n6. Gate',
     type: 'prompt' as const,
     label: 'QUESTION',
   });
@@ -489,6 +516,7 @@ function handleObjDesc(socket: Socket, user: User, input: string): { handled: bo
   const currentRoom = repo.getRoom(user.current_q, user.current_r, user.server_code)!;
   const visibleRooms = repo.getVisibleRooms(updatedUser.current_q, updatedUser.current_r, user.server_code);
   const roomItems = repo.getRoomItems(currentRoom.id, user.server_code);
+  const inventory = repo.getUserInventory(user.id, user.server_code);
 
   return {
     handled: true,
@@ -497,6 +525,7 @@ function handleObjDesc(socket: Socket, user: User, input: string): { handled: bo
       room: currentRoom,
       visibleRooms,
       roomItems,
+      inventory,
     },
   };
 }
@@ -613,6 +642,7 @@ function finishObjectCreation(socket: Socket, user: User, tempItemData: import('
     enemy_max_hp: enemyMaxHp,
     enemy_attack: enemyAttack,
     xp_value: tempItemData.interactionType === 'ENEMY' ? (tempItemData.xpValue || 10) : 10,
+    is_infinite: tempItemData.isInfinite ? 1 : 0,
   });
 
   socket.emit('game:log', {
@@ -634,6 +664,7 @@ function finishObjectCreation(socket: Socket, user: User, tempItemData: import('
   const currentRoom = repo.getRoom(user.current_q, user.current_r, user.server_code)!;
   const visibleRooms = repo.getVisibleRooms(updatedUser.current_q, updatedUser.current_r, user.server_code);
   const roomItems = repo.getRoomItems(currentRoom.id, user.server_code);
+  const inventory = repo.getUserInventory(user.id, user.server_code);
 
   return {
     handled: true,
@@ -642,6 +673,7 @@ function finishObjectCreation(socket: Socket, user: User, tempItemData: import('
       room: currentRoom,
       visibleRooms,
       roomItems,
+      inventory,
     },
   };
 }
@@ -695,7 +727,7 @@ function handleObjType(socket: Socket, user: User, input: string): { handled: bo
     tempItemData.verb = 'fight';
     tempItemData.effectType = 'COMBAT';
   } else if (interactionType === 'TREASURE') {
-    tempItemData.verb = 'open';
+    tempItemData.verb = 'search';
   }
   
   store.setTempItemData(user.id, tempItemData);
@@ -710,7 +742,7 @@ function handleObjType(socket: Socket, user: User, input: string): { handled: bo
       label: 'QUESTION',
     });
   } else if (tempItemData.interactionType === 'TREASURE') {
-    // Type 2 (Treasure): Verb already set to 'open', ask for gold amount
+    // Type 2 (Treasure): Verb already set to 'search', ask for gold amount
     repo.updateUserState(user.id, 'CREATING_OBJ_VALUE');
     socket.emit('game:log', {
       text: 'How much Gold?',
@@ -728,14 +760,14 @@ function handleObjType(socket: Socket, user: User, input: string): { handled: bo
       label: 'QUESTION',
     });
   } else if (tempItemData.interactionType === 'PICKUP') {
-    // Type 4 (Pickup): Verb already set to 'take', ask for success message
+    // Type 4 (Pickup): Verb already set to 'take', ask about supply type
     if (!tempItemData.verb) {
       tempItemData.verb = 'take';
       store.setTempItemData(user.id, tempItemData);
     }
-    repo.updateUserState(user.id, 'CREATING_OBJ_SUCCESS_MSG');
+    repo.updateUserState(user.id, 'CREATING_OBJ_SUPPLY_TYPE');
     socket.emit('game:log', {
-      text: 'What is the success message?',
+      text: 'Is this item Unique (disappears when taken) or Infinite (everyone can take one)? (1. Unique, 2. Infinite)',
       type: 'prompt' as const,
       label: 'QUESTION',
     });
@@ -765,6 +797,7 @@ function handleObjType(socket: Socket, user: User, input: string): { handled: bo
   const currentRoom = repo.getRoom(user.current_q, user.current_r, user.server_code)!;
   const visibleRooms = repo.getVisibleRooms(updatedUser.current_q, updatedUser.current_r, user.server_code);
   const roomItems = repo.getRoomItems(currentRoom.id, user.server_code);
+  const inventory = repo.getUserInventory(user.id, user.server_code);
 
   return {
     handled: true,
@@ -773,6 +806,7 @@ function handleObjType(socket: Socket, user: User, input: string): { handled: bo
       room: currentRoom,
       visibleRooms,
       roomItems,
+      inventory,
     },
   };
 }
@@ -808,10 +842,11 @@ function handleObjValue(socket: Socket, user: User, input: string): { handled: b
   tempItemData.effectValue = value; // Store as-is (negative for damage, positive for heal)
   store.setTempItemData(user.id, tempItemData);
 
-  // Ask for success message after value
-  repo.updateUserState(user.id, 'CREATING_OBJ_SUCCESS_MSG');
+  // Ask for verb confirmation (for Treasure and Buff/Trap)
+  const defaultVerb = tempItemData.verb || 'interact';
+  repo.updateUserState(user.id, 'CREATING_OBJ_VERB_CONFIRM');
   socket.emit('game:log', {
-    text: 'What is the success message?',
+    text: `Default verb is '${defaultVerb}'. Press 'Y' to confirm or type a custom verb.`,
     type: 'prompt' as const,
     label: 'QUESTION',
   });
@@ -820,6 +855,7 @@ function handleObjValue(socket: Socket, user: User, input: string): { handled: b
   const currentRoom = repo.getRoom(user.current_q, user.current_r, user.server_code)!;
   const visibleRooms = repo.getVisibleRooms(updatedUser.current_q, updatedUser.current_r, user.server_code);
   const roomItems = repo.getRoomItems(currentRoom.id, user.server_code);
+  const inventory = repo.getUserInventory(user.id, user.server_code);
 
   return {
     handled: true,
@@ -828,6 +864,7 @@ function handleObjValue(socket: Socket, user: User, input: string): { handled: b
       room: currentRoom,
       visibleRooms,
       roomItems,
+      inventory,
     },
   };
 }
@@ -886,6 +923,7 @@ function handleObjEnemyStats(socket: Socket, user: User, input: string): { handl
   const currentRoom = repo.getRoom(user.current_q, user.current_r, user.server_code)!;
   const visibleRooms = repo.getVisibleRooms(updatedUser.current_q, updatedUser.current_r, user.server_code);
   const roomItems = repo.getRoomItems(currentRoom.id, user.server_code);
+  const inventory = repo.getUserInventory(user.id, user.server_code);
 
   return {
     handled: true,
@@ -894,12 +932,68 @@ function handleObjEnemyStats(socket: Socket, user: User, input: string): { handl
       room: currentRoom,
       visibleRooms,
       roomItems,
+      inventory,
     },
   };
 }
 
 /**
- * Step 4: Handle Requirement (CREATING_OBJ_REQUIREMENT)
+ * Step 4: Handle Supply Type (CREATING_OBJ_SUPPLY_TYPE) - For Pickup items
+ */
+function handleObjSupplyType(socket: Socket, user: User, input: string): { handled: boolean; shouldEmitState?: StateUpdatePayload } {
+  const tempItemData = store.getTempItemData(user.id);
+  if (!tempItemData || !tempItemData.name || !tempItemData.interactionType) {
+    socket.emit('game:log', {
+      text: 'Creation session expired. Please try again.',
+      type: 'error' as const,
+    });
+    repo.updateUserState(user.id, 'IDLE');
+    store.deleteTempItemData(user.id);
+    return { handled: true };
+  }
+
+  const choice = parseInt(input.trim(), 10);
+  if (isNaN(choice) || (choice !== 1 && choice !== 2)) {
+    socket.emit('game:log', {
+      text: 'Invalid selection. Please enter 1 for Unique or 2 for Infinite.',
+      type: 'error' as const,
+    });
+    return { handled: true };
+  }
+
+  // Set isInfinite based on choice
+  tempItemData.isInfinite = choice === 2;
+  store.setTempItemData(user.id, tempItemData);
+
+  // Ask for verb confirmation (for Pickup)
+  const defaultVerb = tempItemData.verb || 'take';
+  repo.updateUserState(user.id, 'CREATING_OBJ_VERB_CONFIRM');
+  socket.emit('game:log', {
+    text: `Default verb is '${defaultVerb}'. Press 'Y' to confirm or type a custom verb.`,
+    type: 'prompt' as const,
+    label: 'QUESTION',
+  });
+
+  const updatedUser = repo.getUser(user.id)!;
+  const currentRoom = repo.getRoom(user.current_q, user.current_r, user.server_code)!;
+  const visibleRooms = repo.getVisibleRooms(updatedUser.current_q, updatedUser.current_r, user.server_code);
+  const roomItems = repo.getRoomItems(currentRoom.id, user.server_code);
+  const inventory = repo.getUserInventory(user.id, user.server_code);
+
+  return {
+    handled: true,
+    shouldEmitState: {
+      player: updatedUser,
+      room: currentRoom,
+      visibleRooms,
+      roomItems,
+      inventory,
+    },
+  };
+}
+
+/**
+ * Step 5: Handle Requirement (CREATING_OBJ_REQUIREMENT)
  */
 function handleObjRequirement(socket: Socket, user: User, input: string): { handled: boolean; shouldEmitState?: StateUpdatePayload } {
   const tempItemData = store.getTempItemData(user.id);
@@ -947,10 +1041,11 @@ function handleObjRequirement(socket: Socket, user: User, input: string): { hand
 
   store.setTempItemData(user.id, tempItemData);
 
-  // Ask for success message after requirement
-  repo.updateUserState(user.id, 'CREATING_OBJ_SUCCESS_MSG');
+  // Ask for verb confirmation (for Gate)
+  const defaultVerb = tempItemData.verb || 'open';
+  repo.updateUserState(user.id, 'CREATING_OBJ_VERB_CONFIRM');
   socket.emit('game:log', {
-    text: `Describe what happens when someone ${tempItemData.verb || 'interacts with'} ${tempItemData.name}.`,
+    text: `Default verb is '${defaultVerb}'. Press 'Y' to confirm or type a custom verb.`,
     type: 'prompt' as const,
     label: 'QUESTION',
   });
@@ -959,6 +1054,7 @@ function handleObjRequirement(socket: Socket, user: User, input: string): { hand
   const currentRoom = repo.getRoom(user.current_q, user.current_r, user.server_code)!;
   const visibleRooms = repo.getVisibleRooms(updatedUser.current_q, updatedUser.current_r, user.server_code);
   const roomItems = repo.getRoomItems(currentRoom.id, user.server_code);
+  const inventory = repo.getUserInventory(user.id, user.server_code);
 
   return {
     handled: true,
@@ -967,12 +1063,66 @@ function handleObjRequirement(socket: Socket, user: User, input: string): { hand
       room: currentRoom,
       visibleRooms,
       roomItems,
+      inventory,
     },
   };
 }
 
 /**
- * Step 5: Handle Contents (CREATING_OBJ_CONTENTS) - For future container logic
+ * Step 5: Handle Verb Confirmation (CREATING_OBJ_VERB_CONFIRM)
+ */
+function handleObjVerbConfirm(socket: Socket, user: User, input: string): { handled: boolean; shouldEmitState?: StateUpdatePayload } {
+  const tempItemData = store.getTempItemData(user.id);
+  if (!tempItemData || !tempItemData.name || !tempItemData.interactionType) {
+    socket.emit('game:log', {
+      text: 'Creation session expired. Please try again.',
+      type: 'error' as const,
+    });
+    repo.updateUserState(user.id, 'IDLE');
+    store.deleteTempItemData(user.id);
+    return { handled: true };
+  }
+
+  const trimmedInput = input.trim().toLowerCase();
+  
+  // If user confirms with 'y', use the default verb
+  if (trimmedInput === 'y' || trimmedInput === 'yes') {
+    // Verb is already set in tempItemData, keep it
+  } else {
+    // User provided a custom verb
+    tempItemData.verb = trimmedInput;
+  }
+  
+  store.setTempItemData(user.id, tempItemData);
+
+  // Proceed to success message
+  repo.updateUserState(user.id, 'CREATING_OBJ_SUCCESS_MSG');
+  socket.emit('game:log', {
+    text: `Describe what happens when someone ${tempItemData.verb} ${tempItemData.name}.`,
+    type: 'prompt' as const,
+    label: 'QUESTION',
+  });
+
+  const updatedUser = repo.getUser(user.id)!;
+  const currentRoom = repo.getRoom(user.current_q, user.current_r, user.server_code)!;
+  const visibleRooms = repo.getVisibleRooms(updatedUser.current_q, updatedUser.current_r, user.server_code);
+  const roomItems = repo.getRoomItems(currentRoom.id, user.server_code);
+  const inventory = repo.getUserInventory(user.id, user.server_code);
+
+  return {
+    handled: true,
+    shouldEmitState: {
+      player: updatedUser,
+      room: currentRoom,
+      visibleRooms,
+      roomItems,
+      inventory,
+    },
+  };
+}
+
+/**
+ * Step 6: Handle Contents (CREATING_OBJ_CONTENTS) - For future container logic
  */
 function handleObjContents(socket: Socket, user: User, input: string): { handled: boolean; shouldEmitState?: StateUpdatePayload } {
   // Placeholder for future container/contents logic

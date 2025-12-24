@@ -40,6 +40,7 @@ export interface Item {
   enemy_max_hp?: number;
   enemy_attack?: number;
   xp_value?: number;
+  is_infinite?: number;
 }
 
 export interface Animation {
